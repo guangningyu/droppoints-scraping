@@ -58,10 +58,14 @@ class DropPointScraper:
         self.set_token()
         rows = []
         for area in self.get_areas(city):
-            for droppoint in self.get_droppoints(city, area):
-                droppoint.insert(0, area)
-                droppoint.insert(0, city)
-                rows.append(droppoint)
+            try:
+                for droppoint in self.get_droppoints(city, area):
+                    droppoint.insert(0, area)
+                    droppoint.insert(0, city)
+                    rows.append(droppoint)
+            except Exception as e:
+                    print (city, area, e)
+                    pass
 
         # save output
         file_path = os.path.join(self.output_dir, '{}.csv'.format(city))
