@@ -1,11 +1,16 @@
+import os
+import time
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
 class DropPointScraper:
-    def __init__(self):
+    def __init__(self, output_dir):
         self.session = requests.Session()
         self.headers = None
+        self.output_dir = output_dir
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
     def set_headers(self):
         url = 'http://www.jet.co.id/droppoint'
@@ -29,21 +34,35 @@ class DropPointScraper:
         url = 'http://www.jet.co.id/droppoint/getHtml'
         res = self.session.post(url, headers=self.headers, json={'city': city, 'area': area})
         soup = BeautifulSoup(res.text, "lxml")
-        droppoints = [i.text.replace('Drop Point', '') for i in soup.findAll('h4')]
+        code = soup.find('a', attrs = {'class': None})['href'].split('/')[-1]
+        droppoints = [(code, i.text.replace('Drop Point ', '')) for i in soup.findAll('h4')]
         return droppoints
 
-    def save(self, file_path):
-        self.set_headers()
+    def process_city(self, city):
+        print ('Scrape {}...'.format(city))
 
-        # scrape data
+        # scrape
+        self.set_headers()
         rows = []
-        for city in self.get_cities():
-            for area in self.get_areas(city):
-                for droppoint in self.get_droppoints(city, area):
-                    rows.append([city, area, droppoint])
+        for area in self.get_areas(city):
+            for code, droppoint in self.get_droppoints(city, area):
+                rows.append([city, code, area, droppoint])
 
         # save output
+        file_path = os.path.join(self.output_dir, '{}.csv'.format(city))
         df = pd.DataFrame(rows)
         df.to_csv(file_path, index=False, header=False, sep='~')
 
-DropPointScraper().save('/Users/guangning.yu/droppoints.csv')
+    def run(self):
+        for city in self.get_cities():
+            try:
+                self.process_city(city)
+            except Exception as e:
+                print (e)
+                pass
+            time.sleep(1)
+
+if __name__ == '__main__':
+    DropPointScraper(
+        output_dir='/Users/guangning.yu/Workspace/20190829_web_crawl/droppoints'
+    ).run()
