@@ -75,6 +75,37 @@ class DropPointScraper:
         df = pd.DataFrame(rows)
         df.to_csv(file_path, index=False, header=False, sep='~')
 
+    def rerun_failed_jobs(self):
+        self.set_token()
+
+        # parse failed city/area pairs
+        error_message = " 'NoneType' object has no attribute 'findAll'"
+        city_area_pairs = []
+        with open('run.log', 'r') as f:
+            lines = [line.strip() for line in f.readlines()]
+        for line in lines:
+            if (error_message in line):
+                line = line.replace(error_message, '')
+                for city in self.get_cities():
+                    if (line.startswith(city)):
+                        area = line.replace(city, '', 1).strip()
+                        city_area_pairs.append((city, area))
+
+        # re-scrape failed city/area pairs
+        for city, area in city_area_pairs:
+            try:
+                rows = []
+                for droppoint in self.get_droppoints(city, area):
+                    droppoint.insert(0, area)
+                    droppoint.insert(0, city)
+                    rows.append(droppoint)
+                file_path = os.path.join(self.output_dir, '{}_{}.csv'.format(city, area))
+                df = pd.DataFrame(rows)
+                df.to_csv(file_path, index=False, header=False, sep='~')
+            except Exception as e:
+                print (city, area, e)
+                pass
+
     def run(self):
         for city in self.get_cities():
             try:
@@ -85,6 +116,6 @@ class DropPointScraper:
             time.sleep(1)
 
 if __name__ == '__main__':
-    DropPointScraper(
-        output_dir='/Users/guangning.yu/Workspace/20190829_web_crawl/output'
-    ).run()
+    scraper = DropPointScraper(output_dir='/Users/guangning.yu/Workspace/20190829_web_crawl/output')
+    scraper.run()
+    scraper.rerun_failed_jobs()
